@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>信号与系统</title>
+    <style>
+        body {
+            background-color: rgb(65, 99, 73);
+            color: rgb(255, 255, 255);
+        }
+        .title-part {
+            font-size: 30px;
+            text-align: center;
+            font-weight: bold;
+            margin: 15px;
+        }
+        .main-part {
+            text-align: center;
+        }
+        .file-input {
+            font-size: 20px;
+            margin-left: 130px;
+        }
+        .file-input > input {
+            font-size: 16px;
+
+        }
+        .frequency-input {
+            font-size: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .frequency-input > div {
+            margin: 30px;
+        }
+        .frequency-input > div > div {
+            margin: auto;
+            position: relative;
+            width: 300px;
+            height: 40px;
+        }
+        .frequency-input > div input {
+            width: 300px;
+            height: 40px;
+            color: rgb(88, 88, 88);
+        }
+        .high-text, .low-text {
+            position: absolute;
+            top: 30px;
+            left: 130px;
+        }
+        .show-part {
+            margin: auto;
+            max-width: 700px;
+            min-width: 600px;
+            width: 70%;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .show-part > div {
+            width: 48%;
+            font-size: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .show-part img {
+            width: 200px;
+            height: 200px;
+            margin-top: 0;
+            background-color: rgb(47, 73, 58);
+        }
+        .show-part .mask {
+            display: none;
+            position: absolute;
+            margin: auto;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 5;
+            width: 200px;
+            height: 200px;
+            background-color: rgba(173, 173, 173, 0.664);
+            box-sizing: border-box;
+            padding: 5px;
+            padding-top: 70px;
+            user-select: none;
+            transition: all ease 1s;
+        }
+
+
+    </style>
+</head>
+<body>
+ <div class="title-part">
+    图像变换系统
+ </div>
+ <div class="main-part">
+     <div class="input-part">
+        <div class="file-input">
+            请选择本地图片：
+            <input type="file" name="image" onchange="changePhoto(this)" accept=".jpg, .jpeg, .png, .bmp, .tif">
+        </div>
+        <div class="frequency-input">
+            <div>
+                高通滤波器截止频率：
+                <div title="越高越尖锐">
+                    <input type="range" id="high-frequency" min="0" max="100" list="data-list" onmousemove="changeHigh(this.value)" onclick="changeHigh(this.value)" onchange="getHigh(this.value)">
+                    <span class="high-text">15%</span>
+                </div>
+            </div>
+            <div>
+                低通滤波器截止频率：
+                <div title="越低越模糊">
+                    <input type="range" id="low-frequency" min="0" max="100" list="data-list" onmousemove="changeLow(this.value)" onclick="changeLow(this.value)" onchange="getLow(this.value)">
+                    <span class="low-text">15%</span>
+                </div>
+            </div>
+            <datalist id="data-list">
+                <option value="0"></option>
+                <option value="20"></option>
+                <option value="40"></option>
+                <option value="60"></option>
+                <option value="80"></option>
+                <option value="100"></option>
+            </datalist>
+        </div>
+     </div>
+     <div class="show-part">
+        <div>
+            <div class="mask original">小成本服务器，奋力加载中...
+                <div class="load-icon"></div>
+            </div>
+            <img id="original">
+            <div>原图</div>
+        </div>
+        <div>
+            <div class="mask fft">小成本服务器，奋力加载中...
+                <div class="load-icon"></div>
+            </div>
+            <img id="fft">
+            <div>频谱图像</div>
+        </div>
+        <div>
+            <div class="mask high">小成本服务器，奋力加载中...
+                <div class="load-icon"></div>
+            </div>
+            <img id="high">
+            <div>高通滤波图像</div>
+        </div>
+        <div>
+            <div class="mask low">小成本服务器，奋力加载中...
+                <div class="load-icon"></div>
+            </div>
+            <img id="low">
+            <div>低通滤波图像</div>
+        </div>
+     </div>
+ </div>
+</body>
+<script src="https://s.ssl.qhimg.com/lib/jquery/183.js"></script>
+<script>
+    var img = '';
+    var orign = 'http://49.233.200.100:4002'
+    var highText = $('.high-text')[0];
+    var lowText = $('.low-text')[0];
+    
+    var imgs = document.getElementsByTagName('img');
+    for(let i of imgs) {
+        i.onload = function() {
+            $('.' + i.id).css('display', 'none');
+            console.log('图片大小：' + this.currentSrc.length);
+        }
+    }
+    //设定拖动条默认值
+    document.getElementById('high-frequency').value = 15;
+    document.getElementById('low-frequency').value = 15;
+
+    function changePhoto(f) {
+        var file = $(f)[0].files[0];
+        if (file) {
+            $('.mask').css('display', 'block');
+            var reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = function(e) {
+                let result = e.target.result;
+                console.log('上传前文件大小：' + file.size);
+                if (file.size / 1024 > 128) {
+                    compressPhoto(result, {
+                        width: 300
+                    }, getAll);
+                } else {
+                    getAll(result);
+                }
+            }
+        }
+    }
+    function changeHigh (v) {
+        highText.textContent = v + '%';
+    }
+    function changeLow (v) {
+        lowText.textContent = v + '%';
+    }
+    function getHigh(v) {
+        if(img === '') return;
+        $('.high').css('display', 'block');
+        document
+        let data = {
+            file: img,
+            high_frequency: $('#high-frequency').val()
+        };
+        $.post(orign + '/high', data, res => {
+            $('#high').attr('src', 'data:image/jpg;base64,' + res.high_pass)
+        })
+    }
+    function getLow(v) {
+        if(img === '') return;
+        $('.low').css('display', 'block');
+
+        let data = {
+            file: img,
+            low_frequency: $('#low-frequency').val()
+        };
+        $.post(orign + '/low', data, res => {
+            $('#low').attr('src', 'data:image/jpg;base64,' + res.low_pass)
+        })
+    }
+    function getAll(result) {
+        $("#original").attr('src', result); 
+        img = result;
+        let data = {
+            file: result,
+            high_frequency: $('#high-frequency').val(),
+            low_frequency: $('#low-frequency').val()
+        };
+        $.post(orign, data, res => {
+
+            let src = 'data:image/jpg;base64,' + res.fft;
+            $('#fft').attr('src', src);
+
+            src = 'data:image/jpg;base64,' + res.high_pass;
+            $('#high').attr('src', src);
+
+            src = 'data:image/jpg;base64,' + res.low_pass;
+            $('#low').attr('src', src);
+                    
+        })
+    }
+    function compressPhoto(data, option, callback) {
+        var i = new Image();
+        i.src = data;
+        i.onload = function () {
+
+            var that = this;
+            var w = that.width,
+                h = that.height,
+                scale = w / h;
+            w = option.width || w;
+            h = option.height || (w / scale);
+            var quality = option.quality || 0.5;
+            var canvas = document.createElement('canvas');
+            var ctx = canvas.getContext('2d');
+
+            var anw = document.createAttribute('width');
+            anw.nodeValue = w;
+            var anh = document.createAttribute('height');
+            anh.nodeValue = h;
+            canvas.setAttributeNode(anw);
+            canvas.setAttributeNode(anh);
+            ctx.drawImage(that, 0, 0, w, h);
+            var base64 = canvas.toDataURL('image/png', quality);
+            callback(base64);
+        }
+    }
+</script>
+</html>
